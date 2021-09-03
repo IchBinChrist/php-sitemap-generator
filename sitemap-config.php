@@ -35,4 +35,7 @@ return array(
 
     // Date changed (today's date)
     "LAST_UPDATED" => date('Y-m-d'),
+
+    // Max time limit in seconds. If vaule is -1 time limit is unlimited time. 
+    "TIME_LIMIT" => -1,
 );

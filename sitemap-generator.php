@@ -15,6 +15,9 @@ class SitemapGenerator
 	// File where sitemap is written to.
 	private $sitemap_file;
 
+	//Timestamp of the start time
+	private $start_time;
+
 	// Constructor sets the given file for internal use
 	public function __construct($conf)
 	{
@@ -23,6 +26,8 @@ class SitemapGenerator
 		$this->scanned = [];
 		$this->site_url_base = parse_url($this->config['SITE_URL'])['scheme'] . "://" . parse_url($this->config['SITE_URL'])['host'];
 		$this->sitemap_file = fopen($this->config['SAVE_LOC'], "w");
+		$this->start_time = time();
+		
 	}
 
 	public function GenerateSitemap()
@@ -54,6 +59,11 @@ class SitemapGenerator
 	// Recursive function that crawls a page's anchor tags and store them in the scanned array.
 	private function crawlPage($page_url)
 	{
+		// Check the time limit
+		if($this->config['TIME_LIMIT']!=-1 && $this->start_time < (time()-$this->config['TIME_LIMIT'])) {
+			return;
+		}
+		
 		$url = filter_var($page_url, FILTER_SANITIZE_URL);
 
 		// Check if the url is invalid or if the page is already scanned;
@@ -99,6 +109,11 @@ class SitemapGenerator
 						continue;
 					}
 				}
+			}
+			
+			// Skip email
+			if(filter_var($next_url, FILTER_VALIDATE_EMAIL)) {
+				continue;
 			}
 
 			// Check if the link is absolute or relative.
