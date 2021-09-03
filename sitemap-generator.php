@@ -12,7 +12,7 @@ class SitemapGenerator
 	private $completed;
 
 	// The base of the given site url
-	// EXAMPLE: https://student-laptop.nl
+	// EXAMPLE: https://www.fun4m3.de 
 	private $site_url_base;
 
 	// File where sitemap is written to.
@@ -211,7 +211,7 @@ class SitemapGenerator
 		$xml = '<?xml version="1.0" encoding="UTF-8"?>
         <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 		<!-- ' . count($pages) . ' total pages-->
-		<!-- PHP-sitemap-generator by https://github.com/tristangoossens -->';
+		<!-- PHP-sitemap-generator by https://github.com/IchBinChrist and https://github.com/tristangoossens -->';
 
 
 		// Print the amount of pages
