@@ -1,12 +1,22 @@
 <?php
 
+$mainUrl='';
+if(isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on'){
+    $mainUrl = "https";
+}else{
+    $mainUrl = "http";
+}
+$mainUrl .= "://";
+$mainUrl .= $_SERVER['HTTP_HOST'];
+
+
 return array(
     // Site to crawl and create a sitemap for.
     // <Syntax> https://www.your-domain-name.com/ or http://www.your-domain-name.com/
-    "SITE_URL" => "https://student-laptop.nl/",
+    "SITE_URL" => $mainUrl,
 
     // Boolean for crawling external links.
-    // <Example> *Domain = https://www.student-laptop.nl* , *Link = https://www.google.com* <When false google will not be crawled>
+    // <Example> *Domain = https://www.fun4m3.de* , *Link = https://www.google.com* <When false google will not be crawled>
     "ALLOW_EXTERNAL_LINKS" => false,
 
     // Boolean for crawling element id links.
@@ -20,12 +30,15 @@ return array(
     "CRAWL_ANCHORS_WITH_ID" => "",
 
     // Array with absolute links or keywords for the pages to skip when crawling the given SITE_URL.
-    // <Example> https://student-laptop.nl/info/laptops or you can just input student-laptop.nl/info/ and it will not crawl anything in that directory
+    // <Example> https://www.fun4m3.de/search/label/Funny or you can just input fun4m3.de/search/label/ and it will not crawl anything in that directory
     // Try to be as specific as you can so you dont skip 300 pages
     "KEYWORDS_TO_SKIP" => array(),
 
     // Location + filename where the sitemap will be saved.
-    "SAVE_LOC" => "sitemap.xml",
+    "SAVE_LOC" => dirname(__FILE__) . "/sitemap.xml",
+    
+    // Location + filename where the temp-sitemap will be saved.
+    "SAVE_TEMP" => dirname(__FILE__) . "/temp-sitemap.xml",
 
     // Static priority value for sitemap
     "PRIORITY" => 1,
@@ -37,5 +50,9 @@ return array(
     "LAST_UPDATED" => date('Y-m-d'),
 
     // Max time limit in seconds. If vaule is -1 time limit is unlimited time. 
-    "TIME_LIMIT" => -1,
+    "TIME_LIMIT" => 60*3,
+
+    // Timeout of curl
+    "CURLOPT_TIMEOUT" => 10,
+
 );

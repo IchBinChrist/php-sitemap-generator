@@ -8,6 +8,9 @@ class SitemapGenerator
 	// Array containing all scanned pages
 	private $scanned;
 
+	// Array containing all completed pages
+	private $completed;
+
 	// The base of the given site url
 	// EXAMPLE: https://student-laptop.nl
 	private $site_url_base;
@@ -18,25 +21,50 @@ class SitemapGenerator
 	//Timestamp of the start time
 	private $start_time;
 
+	// Has found a new page
+	private $is_changed;
+
 	// Constructor sets the given file for internal use
 	public function __construct($conf)
 	{
 		// Setup class variables using the config
 		$this->config = $conf;
 		$this->scanned = [];
+		$this->completed = [];
 		$this->site_url_base = parse_url($this->config['SITE_URL'])['scheme'] . "://" . parse_url($this->config['SITE_URL'])['host'];
-		$this->sitemap_file = fopen($this->config['SAVE_LOC'], "w");
 		$this->start_time = time();
+		$this->is_changed = false;
 		
 	}
 
 	public function GenerateSitemap()
 	{
+		$this->addTempSitemap();
+		
+		
 		// Call the recursive crawl function with the start url.
 		$this->crawlPage($this->config['SITE_URL']);
 
-		// Generate a sitemap with the scanned pages.
-		$this->generateFile($this->scanned);
+		// Generate a temp-sitemap with the completed pages.
+		if($this->config['SAVE_TEMP']!='' && $this->config['TIME_LIMIT']!=-1 && $this->start_time < (time() - $this->config['TIME_LIMIT']) ){
+			echo count($this->scanned).' (';
+			$this->sitemap_file = fopen($this->config['SAVE_TEMP'], "w");
+			$this->generateFile($this->completed);
+			echo ')';
+
+			if( !$this->is_changed ){
+				//rename($this->config['SAVE_TEMP'], $this->config['SAVE_LOC']);
+			}
+		}else{
+			$this->sitemap_file = fopen($this->config['SAVE_LOC'], "w");
+			// Generate a sitemap with the scanned pages.
+			$this->generateFile($this->scanned);
+			if($this->config['SAVE_TEMP']!='' && file_exists($this->config['SAVE_TEMP'])){
+				unlink($this->config['SAVE_TEMP']);
+			}
+		}
+
+
 	}
 
 	// Get the html content of a page and return it as a dom object
@@ -46,6 +74,7 @@ class SitemapGenerator
 		$curl = curl_init();
 		curl_setopt($curl, CURLOPT_URL, $url);
 		curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($curl, CURLOPT_TIMEOUT, $this->config['CURLOPT_TIMEOUT']);
 		$html = curl_exec($curl);
 		curl_close($curl);
 
@@ -56,14 +85,23 @@ class SitemapGenerator
 		return $dom;
 	}
 
+	// Read and add the last temp-sitemap
+	private function addTempSitemap()
+	{
+		if($this->config['SAVE_TEMP']!='' && file_exists($this->config['SAVE_TEMP'])){
+			$xml = simplexml_load_file($this->config['SAVE_TEMP']);
+			
+			foreach($xml->url as $urlItem ) { 
+				array_push($this->completed, $urlItem->loc);
+				array_push($this->scanned, $urlItem->loc);
+				//echo $urlItem->loc.'<br>';
+			}
+		}
+	}
+
 	// Recursive function that crawls a page's anchor tags and store them in the scanned array.
 	private function crawlPage($page_url)
 	{
-		// Check the time limit
-		if($this->config['TIME_LIMIT']!=-1 && $this->start_time < (time()-$this->config['TIME_LIMIT'])) {
-			return;
-		}
-		
 		$url = filter_var($page_url, FILTER_SANITIZE_URL);
 
 		// Check if the url is invalid or if the page is already scanned;
@@ -71,8 +109,19 @@ class SitemapGenerator
 			return;
 		}
 
+		// Check match PREG_MATCH
+		if(!($this->config['PREG_MATCH']=='' || preg_match_all($this->config['PREG_MATCH'], $page_url) )){
+			return;
+		}
+
 		// Add the page url to the scanned array
 		array_push($this->scanned, $page_url);
+		$this->is_changed = true;
+
+		// Check the time limit
+		if($this->config['TIME_LIMIT']!=-1 && $this->start_time < (time()-$this->config['TIME_LIMIT'])) {
+			return;
+		}
 
 		// Get the html content from the 
 		$html = $this->getHtml($url);
@@ -81,6 +130,10 @@ class SitemapGenerator
 		// Loop through all anchor tags on the page
 		foreach ($anchors as $a) {
 			$next_url = $a->getAttribute('href');
+			// Skip email and Phone
+			if(strpos( $next_url, 'tel:' ) === 0  || strpos( $next_url, 'mailto:' ) === 0 ) {
+				continue;
+			}
 
 			// Check if there is a anchor ID set in the config.
 			if ($this->config['CRAWL_ANCHORS_WITH_ID'] != "") {
@@ -111,11 +164,6 @@ class SitemapGenerator
 				}
 			}
 			
-			// Skip email
-			if(filter_var($next_url, FILTER_VALIDATE_EMAIL)) {
-				continue;
-			}
-
 			// Check if the link is absolute or relative.
 			if (substr($next_url, 0, 7) != "http://" && substr($next_url, 0, 8) != "https://") {
 				$next_url = $this->convertRelativeToAbsolute($base_page_url, $next_url);
@@ -134,6 +182,12 @@ class SitemapGenerator
 				$this->crawlPage($next_url);
 			}
 		}
+		
+		if($this->config['TIME_LIMIT']!=-1 && $this->start_time < (time()-$this->config['TIME_LIMIT'])) {
+			return;
+		}
+
+		array_push($this->completed, $page_url);
 	}
 
 	// Convert a relative link to a absolute link
